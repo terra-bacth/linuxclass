@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# USS LINUX — DAY 1 AUTOMATED VERIFICATION & GRADING SCRIPT (50 POINTS)
-# Supports: AlmaLinux 10 (RHEL 10 family) & Ubuntu 22.04 / 24.04 LTS
+# USS LINUX — DAY 1 AUTOMATED EVALUATION & GRADING SCRIPT (50 POINTS)
+# Supports: AlmaLinux 10 (RHEL 10 / el10 family) & Ubuntu 22.04 / 24.04 LTS
+# Target Workspace: /var/tmp/day1_audit/
 # ==============================================================================
 set -uo pipefail
 
@@ -9,7 +10,7 @@ AUDIT_DIR="/var/tmp/day1_audit"
 SCORE=0
 MAX_SCORE=50
 
-# Detect Distribution Family
+# Detect distribution family
 if [[ -f /etc/os-release ]]; then
     . /etc/os-release
     OS_ID="${ID:-unknown}"
@@ -32,8 +33,8 @@ else
 fi
 
 printf "======================================================================\n"
-printf "   USS LINUX DAY 1 TASK-BASED EXERCISE — AUTOMATED GRADING REPORT\n"
-printf "   Detected OS: %s %s (%s Family) | Target Host: %s\n" "$OS_ID" "$OS_VER" "$DISTRO_FAMILY" "$EXPECTED_HOST"
+printf "   USS LINUX DAY 1 EVALUATION REPORT — 50 POINTS\n"
+printf "   Detected OS: %s %s (%s) | Target Host: %s\n" "$OS_ID" "$OS_VER" "$DISTRO_FAMILY" "$EXPECTED_HOST"
 printf "======================================================================\n\n"
 
 pass_check() {
@@ -75,7 +76,7 @@ else
     fail_check 3 "Static hostname is '$(hostname)' (expected '$EXPECTED_HOST')"
 fi
 
-if grep -q "$EXPECTED_HOST" /etc/hosts && timedatectl status | grep -q "UTC"; then
+if grep -q "$EXPECTED_HOST" /etc/hosts && timedatectl status 2>/dev/null | grep -q "UTC"; then
     pass_check 3 "/etc/hosts contains $EXPECTED_HOST and timezone is UTC"
 else
     fail_check 3 "/etc/hosts entry or UTC timezone missing"
@@ -113,10 +114,10 @@ fi
 # TASK 4: Headless Boot Target & Systemd Service Audit (8 Points)
 # ------------------------------------------------------------------------------
 printf "\n>>> Task 4: Headless Boot Target & Systemd Service Audit (8 pts)\n"
-if [[ "$(systemctl get-default)" == "multi-user.target" ]]; then
+if [[ "$(systemctl get-default 2>/dev/null)" == "multi-user.target" ]]; then
     pass_check 4 "Default systemd target is set to multi-user.target"
 else
-    fail_check 4 "Default target is '$(systemctl get-default)' (expected multi-user.target)"
+    fail_check 4 "Default target is '$(systemctl get-default 2>/dev/null)' (expected multi-user.target)"
 fi
 
 if [[ -s "$AUDIT_DIR/04_systemd_boot.txt" ]] && grep -qiE "Startup finished|service" "$AUDIT_DIR/04_systemd_boot.txt"; then
@@ -159,3 +160,4 @@ else
     printf "  -->  STATUS: NEEDS REVIEW (Target >= 40/50)\n"
 fi
 printf "======================================================================\n"
+exit $(( SCORE >= 40 ? 0 : 1 ))
