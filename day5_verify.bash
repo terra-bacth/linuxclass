@@ -58,15 +58,52 @@ else
     fail_check 8 "03_firewall_rules.txt missing or HTTP/SSH rules not permitted"
 fi
 
+
 # ------------------------------------------------------------------------------
-# TASK 4: OpenSSH Daemon Hardening & Syntax Validation (sshd -t) (8 Points)
+# TASK 4: OpenSSH Daemon Hardening & Syntax Validation (8 Points)
 # ------------------------------------------------------------------------------
-printf "\n>>> Task 4: OpenSSH Daemon Hardening & sshd -t Syntax Check (8 pts)\n"
-if [[ -f /etc/ssh/sshd_config.d/99-day5-hardening.conf ]] && sudo sshd -t 2>/dev/null && [[ -s "$AUDIT_DIR/04_ssh_hardening.txt" ]] && grep -qi "permitrootlogin no" "$AUDIT_DIR/04_ssh_hardening.txt"; then
-    pass_check 8 "SSH drop-in hardening (PermitRootLogin no) and syntax validation verified"
+printf "\n>>> Task 4: OpenSSH Daemon Hardening & Syntax Check (8 pts)\n"
+
+SSH_CONFIG="/etc/ssh/sshd_config.d/99-day5-hardening.conf"
+SSH_REPORT="$AUDIT_DIR/04_ssh_hardening.txt"
+
+# Check 1: Configuration file exists
+if ! sudo test -f "$SSH_CONFIG"; then
+    fail_check 8 "SSH hardening configuration file missing"
 else
-    fail_check 8 "SSH hardening file missing, syntax check failed, or deliverable incomplete"
+
+    # Check 2: SSH configuration syntax
+    if ! sudo sshd -t 2>/dev/null; then
+        fail_check 8 "SSH daemon configuration syntax invalid"
+    else
+
+        # Check 3: Verify effective SSH settings
+        SSH_EFFECTIVE=$(sudo sshd -T 2>/dev/null)
+
+        ROOT_LOGIN=$(echo "$SSH_EFFECTIVE" | awk '$1=="permitrootlogin" {print $2}')
+        MAX_AUTH=$(echo "$SSH_EFFECTIVE" | awk '$1=="maxauthtries" {print $2}')
+        LOGIN_GRACE=$(echo "$SSH_EFFECTIVE" | awk '$1=="logingracetime" {print $2}')
+
+        if [[ "$ROOT_LOGIN" != "no" ]] ||
+           [[ "$MAX_AUTH" != "3" ]] ||
+           [[ "$LOGIN_GRACE" != "30" ]]; then
+
+            fail_check 8 "Effective SSH hardening settings are incorrect"
+
+        # Check 4: Audit report exists and contains required directives
+        elif [[ ! -s "$SSH_REPORT" ]] ||
+             ! grep -qiE 'permitrootlogin[[:space:]]+no' "$SSH_REPORT" ||
+             ! grep -qiE 'maxauthtries[[:space:]]+3' "$SSH_REPORT" ||
+             ! grep -qiE 'logingracetime[[:space:]]+30' "$SSH_REPORT"; then
+
+            fail_check 8 "SSH audit report missing or incomplete"
+
+        else
+            pass_check 8 "SSH hardening, effective settings, audit report and syntax verified"
+        fi
+    fi
 fi
+
 
 # ------------------------------------------------------------------------------
 # TASK 5: Mandatory Access Control (SELinux Contexts vs. AppArmor Profiles) (8 Points)
